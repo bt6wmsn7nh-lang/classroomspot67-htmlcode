@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassroomSpot · dark mode</title>
+    <style>
+        /* === merged dark theme (your new styles) + base tweaks === */
+        body {
+            margin: 0;
+            background: black;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .nav {
+            display: flex;
+            gap: 20px;
+            padding: 14px;
+            align-items: center;
+            background: #000;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .movies-btn {
+            position: relative;
+            padding: 6px 12px;
+            background: #111;
+            border-radius: 8px;
+        }
+
+        .movies-label {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px;
+        }
+
+        #search {
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: none;
+            outline: none;
+            background: #222;
+            color: white;
+            font-size: 1rem;
+        }
+        #search::placeholder {
+            color: #aaa;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 18px;
+            padding: 20px;
+        }
+
+        .game-card {
+            position: relative;
+            height: 140px;
+            border-radius: 16px;
+            background-size: cover;
+            background-position: center;
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform .2s, box-shadow .2s;
+        }
+
+        .game-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,.6), transparent);
+            pointer-events: none;
+        }
+
+        .game-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(255,255,255,.18);
+        }
+
+        .game-name {
+            position: absolute;
+            bottom: 10px;
+            left: 12px;
+            z-index: 2;
+            font-size: 15px;
+            font-weight: bold;
+            text-shadow: 0 2px 6px rgba(0,0,0,.8);
+            color: white;
+            max-width: 80%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* keep fallback for missing roblox image */
+        .game-card[style*="REPLACE_THIS_TEXT"] {
+            background: #1e1e2f !important;
+        }
+
+        /* total games text style */
+        #total {
+            font-weight: 600;
+            color: #ccc;
+            background: #111;
+            padding: 0.4rem 1.2rem;
+            border-radius: 40px;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <span class="logo">ClassroomSpot</span>
+        <a href="index.html">Games</a>
+        <a href="movies.html" class="movies-btn">
+            <span class="movies-label">MOVIES</span>
+        </a>
+        <a href="partners.html">Partners</a>
+        <a href="unblockers.html">Unblockers</a>
+    </nav>
+
+    <div class="topbar">
+        <span id="total">Total games: 710</span>
+        <input id="search" placeholder="Search games…" autocomplete="off">
+    </div>
+
+    <div id="games" class="games-grid"></div>
+
+    <script>
+        (function() {
+            // ---------- CONSTANTS (exactly as before) ----------
+            const ZONES = "https://cdn.jsdelivr.net/gh/gn-math/assets@main/zones.json";
+            const COVER = "https://cdn.jsdelivr.net/gh/gn-math/covers@main";
+            const HTML = "https://cdn.jsdelivr.net/gh/gn-math/html@main";
+
+            // base64 placeholder (same structure, keeps compatibility)
+            const ROBLOX_IMAGE = "data:image/png;base64,REPLACE_THIS_TEXT";   // kept as is
+
+            // ---------- DOM elements ----------
+            const gamesEl = document.getElementById("games");
+            const searchInput = document.getElementById("search");
+            const totalSpan = document.getElementById("total");
+
+            let allGames = [];          // filtered games (no suggest/comment)
+            let currentFiltered = [];
+
+            // ---------- add static Roblox card (always first) ----------
+            function addRobloxCard(container) {
+                const card = document.createElement("div");
+                card.className = "game-card";
+                card.style.backgroundImage = `url('${ROBLOX_IMAGE}')`;
+                const label = document.createElement("div");
+                label.className = "game-name";
+                label.textContent = "Roblox";
+                card.appendChild(label);
+                card.onclick = () => window.open("https://nowgg.fun", "_blank");
+                container.appendChild(card);
+            }
+
+            // ---------- render (list + roblox on top) ----------
+            function render(gameList) {
+                gamesEl.innerHTML = "";
+                addRobloxCard(gamesEl);        // first card = Roblox
+
+                gameList.forEach(g => {
+                    const card = document.createElement("div");
+                    card.className = "game-card";
+
+                    let coverUrl = g.cover
+                        .replace("{COVER_URL}", COVER)
+                        .replace("{HTML_URL}", HTML);
+                    card.style.backgroundImage = `url('${coverUrl}')`;
+
+                    const label = document.createElement("div");
+                    label.className = "game-name";
+                    label.textContent = g.name;
+                    card.appendChild(label);
+
+                    card.onclick = () => openGame(g);
+                    gamesEl.appendChild(card);
+                });
+
+                totalSpan.textContent = "Total games: " + (gameList.length + 1);
+            }
+
+            // ---------- open game in new about:blank ----------
+            function openGame(game) {
+                const win = window.open("about:blank");
+                if (!win) {
+                    alert("Popup blocked? please allow popups for this site.");
+                    return;
+                }
+                const realUrl = game.url.replace("{HTML_URL}", HTML);
+                fetch(realUrl + "?t=" + Date.now())
+                    .then(r => {
+                        if (!r.ok) throw new Error(`status ${r.status}`);
+                        return r.text();
+                    })
+                    .then(html => {
+                        win.document.open();
+                        win.document.write(html);
+                        win.document.close();
+                    })
+                    .catch(e => {
+                        console.warn("game load error", e);
+                        win.document.write(`<h2>Error loading game</h2><p>${game.name}</p>`);
+                    });
+            }
+
+            // ---------- filter handler ----------
+            function filterAndRender() {
+                const q = searchInput.value.toLowerCase().trim();
+                if (q === "") {
+                    render(allGames);
+                } else {
+                    const filtered = allGames.filter(g => g.name.toLowerCase().includes(q));
+                    render(filtered);
+                }
+            }
+
+            // ---------- fetch master JSON ----------
+            fetch(ZONES + "?t=" + Date.now())
+                .then(r => r.json())
+                .then(data => {
+                    allGames = data.filter(g => 
+                        !g.name.toLowerCase().includes("suggest") && 
+                        !g.name.toLowerCase().includes("comment")
+                    );
+                    render(allGames);
+
+                    // connect search after data is ready
+                    searchInput.oninput = filterAndRender;
+                })
+                .catch(err => {
+                    console.error("failed to load manifest", err);
+                    gamesEl.innerHTML = "";
+                    addRobloxCard(gamesEl);
+                    totalSpan.textContent = "Total games: (error)";
+                });
+
+            // fallback if input used before fetch completes
+            searchInput.addEventListener('input', function() {
+                if (allGames.length) filterAndRender();
+            });
+        })();
+    </script>
+</body>
+</html>
